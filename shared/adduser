@@ -1,0 +1,46 @@
+#!/bin/bash
+
+# adduser: Adds a user in a dialog.
+# Author: Jacob Bechmann Pedersen
+# Date: 2019-10-08
+# License: MIT
+
+if [ "$(whoami)" != "root" ]; then
+	echo "You must run this script as root!"
+	exit 1
+fi
+
+proceed="no"
+while [ $proceed == "no" ]; do
+	echo -n "Add the first user. Please enter the username: "
+	read username
+
+	proceed="retry"
+	while [ $proceed == "retry" ]; do
+		echo -e "Is the name \"$username\" okay? [Y/n]:"
+		read response
+
+		if [ "${response,,}" == "y" ] || [ "${response,,}" == "" ]; then
+			proceed="yes"
+		elif [ "${response,,}" == "n" ]; then
+			proceed="no"		
+		else
+			echo "I did not understand that, please try again!"
+			proceed="retry"
+		fi
+	done
+done
+
+groups="adm,dialout,cdrom,sudo,audio,video,plugdev,games,users,input,netdev,gpio,i2c,spi"
+echo "The user will be added to the following default groups:"
+echo -e "\t$(sed 's/,/\n\t/g' <<< $groups)"
+useradd -m -U -G $groups -s /bin/bash $username
+echo
+
+echo "Setting password for $username..."
+retval=10
+while [ $retval -ne 0 ]; do
+	passwd $username
+	retval=$?
+done
+echo

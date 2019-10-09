@@ -1,0 +1,152 @@
+#!/bin/bash
+
+# addap: Adds Access point in dialog.
+# Author: Jacob Bechmann Pedersen
+# Date: 2019-10-09
+# License: MIT
+
+proceed="retry"
+while [ $proceed == "retry" ]; do
+	echo -en "Would you like to add a new access point? [Y/n]: "
+	read response
+
+	if [ "${response,,}" == "y" ] || [ "${response,,}" == "" ]; then
+		proceed="yes"
+	elif [ "${response,,}" == "n" ]; then
+		proceed="no"		
+	else
+		echo "I did not understand that, please try again!"
+		proceed="retry"
+	fi
+done
+
+if [ $proceed == "no" ]; then
+	echo "Exiting..."
+	exit 1
+fi
+
+if [ $proceed == "yes" ]; then
+	proceed="no"
+	while [ $proceed == "no" ]; do
+		echo -n "Please enter SSID: "
+		read ssid
+
+		proceed="retry"
+		while [ $proceed == "retry" ]; do
+			echo -en "Is the name \"$ssid\" okay? [Y/n]:"
+			read response
+
+			if [ "${response,,}" == "y" ] || [ "${response,,}" == "" ]; then
+				proceed="yes"
+			elif [ "${response,,}" == "n" ]; then
+				proceed="no"		
+			else
+				echo "I did not understand that, please try again!"
+				proceed="retry"
+			fi
+		done
+	done
+
+	while [ $proceed == "retry" ]; do
+	echo -en "Does it need a password? [Y/n]: "
+	read response
+
+	if [ "${response,,}" == "y" ] || [ "${response,,}" == "" ]; then
+		proceed="yes"
+	elif [ "${response,,}" == "n" ]; then
+		proceed="no"		
+	else
+		echo "I did not understand that, please try again!"
+		proceed="retry"
+	fi
+	done
+
+	if [ $proceed == "yes" ]; then
+		proceed="no"
+		while [ $proceed == "no" ]; do
+		echo -n "Please enter password: "
+		read password
+		
+		proceed="retry"
+			while [ $proceed == "retry" ]; do
+				echo -en "Is the password: \"$password\"? [Y/n]:"
+				read response
+
+				if [ "${response,,}" == "y" ] || [ "${response,,}" == "" ]; then
+					proceed="yes"
+				elif [ "${response,,}" == "n" ]; then
+					proceed="no"		
+				else
+					echo "I did not understand that, please try again!"
+					proceed="retry"
+				fi
+			done
+		done
+	fi
+fi
+
+echo "Writing acces point into configuration..."
+
+if [ ! -f /etc/wpa_supplicant/wpa_supplicant.conf ]; then
+	touch /etc/wpa_supplicant/wpa_supplicant.conf
+fi
+
+grep -n "ctrl_interface=" /etc/wpa_supplicant/wpa_supplicant.conf > /dev/null 2>&1
+retval=$?
+if [ $retval -eq 0 ]; then
+	linetoedit=$(grep -n "ctrl_interface=" /etc/wpa_supplicant/wpa_supplicant.conf | awk -F ':' '{print $1}')
+	sed "s/\(ctrl_interface=\).*/\1\/var\/run\/wpa_supplicant/" /etc/wpa_supplicant/wpa_supplicant.conf > /tmp/wpa_supplicant.conf
+	cp /tmp/wpa_supplicant.conf /etc/wpa_supplicant/wpa_supplicant.conf
+else
+	echo "ctrl_interface=/var/run/wpa_supplicant" >> /etc/wpa_supplicant/wpa_supplicant.conf
+fi
+
+grep -n "update_config=" /etc/wpa_supplicant/wpa_supplicant.conf > /dev/null 2>&1
+retval=$?
+if [ $retval -eq 0 ]; then
+	linetoedit=$(grep -n "update_config=" /etc/wpa_supplicant/wpa_supplicant.conf | awk -F ':' '{print $1}')
+	sed "s/\(update_config=\).*/\11/" /etc/wpa_supplicant/wpa_supplicant.conf > /tmp/wpa_supplicant.conf
+	cp /tmp/wpa_supplicant.conf /etc/wpa_supplicant/wpa_supplicant.conf
+else
+	echo "update_config=1" >> /etc/wpa_supplicant/wpa_supplicant.conf
+fi
+
+proceed="no"
+while [ $proceed == "no" ]; do
+	echo -n "Please enter WiFi country: "
+	read country
+
+	proceed="retry"
+	while [ $proceed == "retry" ]; do
+		echo -en "Is \"$country\" okay? [Y/n]:"
+		read response
+
+		if [ "${response,,}" == "y" ] || [ "${response,,}" == "" ]; then
+			proceed="yes"
+		elif [ "${response,,}" == "n" ]; then
+			proceed="no"		
+		else
+			echo "I did not understand that, please try again!"
+			proceed="retry"
+		fi
+	done
+done
+
+grep -n "country=" /etc/wpa_supplicant/wpa_supplicant.conf > /dev/null 2>&1
+retval=$?
+if [ $retval -eq 0 ]; then
+	linetoedit=$(grep -n "country=" /etc/wpa_supplicant/wpa_supplicant.conf | awk -F ':' '{print $1}')
+	sed "s/\(country=\).*/\1$country/" /etc/wpa_supplicant/wpa_supplicant.conf > /tmp/wpa_supplicant.conf
+	cp /tmp/wpa_supplicant.conf /etc/wpa_supplicant/wpa_supplicant.conf
+else
+	echo "country=$country" >> /etc/wpa_supplicant/wpa_supplicant.conf
+fi
+
+echo -e "" >> /etc/wpa_supplicant/wpa_supplicant.conf
+echo -e "network={" >> /etc/wpa_supplicant/wpa_supplicant.conf
+echo -e "\tscan_ssid=1" >> /etc/wpa_supplicant/wpa_supplicant.conf
+echo -e "\tssid=\"${ssid}\"" >> /etc/wpa_supplicant/wpa_supplicant.conf
+echo -e "\tpsk=\"${password}\"" >> /etc/wpa_supplicant/wpa_supplicant.conf
+echo -e "}" >> /etc/wpa_supplicant/wpa_supplicant.conf
+
+rm /tmp/wpa_supplicant.conf

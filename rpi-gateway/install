@@ -1,0 +1,29 @@
+#!/bin/bash
+
+# adduser: Sets up the raspberry pi as an "intermediary internet gateway"
+# Author: Jacob Bechmann Pedersen
+# Date: 2019-10-08
+# License: MIT
+
+if [ "$(whoami)" != "root" ]; then
+	echo "You must run this script as root!"
+	exit 1
+fi
+
+# First, the user is created:
+
+echo "Creating a new user..."
+../adduser
+
+# After which the pi user is removed:
+
+echo "Removing standard user pi..."
+userdel -r pi
+retval=$?
+# If not successful, the user is prompted to try manually later:
+if [ $retval -ne 0 ]; then
+	echo "Couldn't remove user pi, please try manually."
+fi
+
+# Then after that, ask if an access point should be added:
+../addap

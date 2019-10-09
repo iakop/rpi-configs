@@ -1,0 +1,59 @@
+#!/bin/bash
+
+# addstaticip: Adds static ip in a dialog.
+# Author: Jacob Bechmann Pedersen
+# Date: 2019-10-09
+# License: MIT
+
+interfaces=($(ip link | grep "^[0-9]:" | grep -v '^[0-9]: lo:' | awk -F ': ' '{print $2}'))
+
+echo "Please pick an interface:"
+for i in "${!interfaces[@]}"
+do
+	echo -e "\t$i) /dev/${interfaces[$i]} ${sizesavail[$i]}"
+done
+echo -e "\tq) Abort install"
+
+# Check for input:
+validresponse=1
+while [ $validresponse -eq 1 ]; do
+	read response
+	
+	# Check if response is a number, and the number index exists within the options:
+	if [ $response -eq $response ] 2> /dev/null && [ "${interfaces[${response}]+y}" == "y" ]; then
+		validresponse=0
+		choicenumber=$response
+		
+	elif [ "${response,,}" == "q" ]; then
+		echo "Aborting install!"
+		exit 1
+	else
+		echo "I did not understand that, please try again!"
+	fi
+done
+echo "You picked: $choicenumber) ${interfaces[$choicenumber]}!"
+
+proceed="no"
+while [ $proceed == "no" ]; do
+	echo -n "Please enter the wanted static ip address: "
+	read ipaddress
+
+	proceed="retry"
+	while [ $proceed == "retry" ]; do
+		echo -en "Is \"$ipaddress\" okay? [Y/n]:"
+		read response
+
+		if [ "${response,,}" == "y" ] || [ "${response,,}" == "" ]; then
+			proceed="yes"
+		elif [ "${response,,}" == "n" ]; then
+			proceed="no"		
+		else
+			echo "I did not understand that, please try again!"
+			proceed="retry"
+		fi
+	done
+done
+
+echo "interface ${interfaces[$choicenumber]}" >> /etc/dhcpcd.conf
+echo "static ip_address=$ipaddress" >> /etc/dhcpcd.conf
+echo "static domain_name_servers=8.8.8.8" >> /etc/dhcpcd.conf
